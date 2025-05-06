@@ -27,6 +27,7 @@ public class DataInitializer implements CommandLineRunner {
                 .email("admin@example.com")
                 .password(passwordEncoder.encode("admin123"))
                 .roles(Set.of(RoleName.ROLE_ADMIN))
+                .active(true)
                 .build());
     }
 }

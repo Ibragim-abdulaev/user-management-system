@@ -1,6 +1,10 @@
 package org.example.usermanagement.controller;
 
 import jakarta.validation.Valid;
+import org.example.usermanagement.dto.LoginRequest;
+import org.example.usermanagement.dto.RegisterRequest;
+import org.example.usermanagement.dto.ResetPasswordRequest;
+import org.example.usermanagement.model.RoleName;
 import org.example.usermanagement.model.User;
 import org.example.usermanagement.security.JwtTokenProvider;
 import org.example.usermanagement.service.EmailService;
@@ -12,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -31,18 +36,29 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody @Valid User user) {
-        if (userService.existsByEmail(user.getEmail())) {
+    public ResponseEntity<String> register(@RequestBody @Valid RegisterRequest request) {
+        if (userService.existsByEmail(request.getEmail())) {
             return ResponseEntity.badRequest().body("Email уже используется");
         }
-        user.setPassword(encoder.encode(user.getPassword()));
+
+        User user = User.builder()
+                .email(request.getEmail())
+                .password(encoder.encode(request.getPassword()))
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .phoneNumber(request.getPhoneNumber())
+                .roles(Set.of(RoleName.ROLE_USER))
+                .build();
+
         userService.save(user);
         return ResponseEntity.ok("Пользователь зарегистрирован");
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> login(@RequestBody Map<String, String> request) {
-        var auth = authManager.authenticate(new UsernamePasswordAuthenticationToken(request.get("email"), request.get("password")));
+    public ResponseEntity<Map<String, String>> login(@RequestBody @Valid LoginRequest request) {
+        var auth = authManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+        );
         String token = jwtProvider.generateToken(auth);
         return ResponseEntity.ok(Map.of("token", token));
     }
@@ -59,12 +75,12 @@ public class AuthController {
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<String> resetPassword(@RequestParam String token, @RequestParam String newPassword) {
-        if (!userService.isResetTokenValid(token)) {
+    public ResponseEntity<String> resetPassword(@RequestBody @Valid ResetPasswordRequest request) {
+        if (!userService.isResetTokenValid(request.getToken())) {
             return ResponseEntity.badRequest().body("Неверный или истекший токен сброса пароля");
         }
 
-        userService.resetPassword(token, newPassword);
+        userService.resetPassword(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok("Пароль успешно изменен");
     }
 }

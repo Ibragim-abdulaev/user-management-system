@@ -41,10 +41,10 @@ public class User implements UserDetails {
     private String phoneNumber;
 
     @Column(name = "reset_token")
-    private String resetToken;  // Токен для сброса пароля
+    private String resetToken;
 
     @Column(name = "reset_token_expiry")
-    private LocalDateTime resetTokenExpiry; // Срок действия токена
+    private LocalDateTime resetTokenExpiry;
 
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
@@ -56,49 +56,51 @@ public class User implements UserDetails {
     private LocalDateTime updatedAt;
 
     @Column(name = "active")
-    private boolean active = true;
+    private Boolean active = true;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "role")
-    private Set<RoleName> roles = new HashSet<>();  // Роли пользователя
+    private Set<RoleName> roles = new HashSet<>();
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return roles.stream()
-                .map(role -> new SimpleGrantedAuthority(role.name()))  // Преобразуем RoleName в SimpleGrantedAuthority
+                .map(role -> new SimpleGrantedAuthority(role.name()))
                 .collect(Collectors.toSet());
     }
 
     @Override
     public String getUsername() {
-        return email;  // Используем email как username
+        return email;
     }
 
     @Override
     public boolean isAccountNonExpired() {
-        return true;  // Мы не делаем учетную запись устаревшей
+        return true;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return active;  // Учетная запись доступна если активна
+        return active != null && active;
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return true;  // Пароль всегда действителен
+        return true;
     }
 
     @Override
     public boolean isEnabled() {
-        return active;  // Учетная запись активна если active = true
+        return active != null && active;
     }
 
-    // Вспомогательные методы
     @PrePersist
     protected void onCreate() {
+        if (this.active == null) {
+            this.active = true;
+        }
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
