@@ -4,6 +4,7 @@ package org.example.usermanagement.controller;
 import org.example.usermanagement.model.User;
 import org.example.usermanagement.security.JwtTokenProvider;
 import org.example.usermanagement.service.CustomUserDetailsService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -28,33 +29,31 @@ public class RefreshTokenController {
         this.userDetailsService = userDetailsService;
     }
 
-    @PostMapping("/refresh")
+    @PostMapping("/token/refresh")
     public ResponseEntity<Map<String, String>> refreshToken(@RequestBody Map<String, String> request) {
         String refreshToken = request.get("refreshToken");
 
-        // Проверяем валидность refresh токена
-        if (refreshToken != null && tokenProvider.validateToken(refreshToken)) {
-            // Извлекаем email пользователя из токена
-            String email = tokenProvider.getEmailFromToken(refreshToken);
-
-            // Загружаем данные пользователя
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-
-            // Создаем новый объект Authentication
-            Authentication authentication = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
-
-            // Генерируем новую пару токенов
-            String newAccessToken = tokenProvider.generateToken(authentication);
-            String newRefreshToken = tokenProvider.generateRefreshToken(authentication);
-
-            Map<String, String> tokens = new HashMap<>();
-            tokens.put("accessToken", newAccessToken);
-            tokens.put("refreshToken", newRefreshToken);
-
-            return ResponseEntity.ok(tokens);
+        if (refreshToken == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Refresh token is required"));
         }
 
-        return ResponseEntity.badRequest().body(Map.of("error", "Invalid refresh token"));
+        if (!tokenProvider.validateRefreshToken(refreshToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid refresh token"));
+        }
+
+        // Извлекаем имя пользователя из refresh token
+        String username = tokenProvider.getUsernameFromRefreshToken(refreshToken);
+
+        // Генерируем новый access token
+        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+        String newToken = tokenProvider.generateToken(authentication);
+
+        return ResponseEntity.ok(Map.of(
+                "token", newToken,
+                "refreshToken", refreshToken  // Возвращаем тот же refresh token, или можно создать новый
+        ));
     }
 }

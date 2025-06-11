@@ -11,11 +11,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 public class SwaggerConfig implements WebMvcConfigurer {
 
-//    @Override
-//    public void addResourceHandlers(final ResourceHandlerRegistry registry) {
-//        registry.addResourceHandler("/api-docs/**")
-//                .addResourceLocations("classpath:/META-INF/resources/webjars/springdoc-openapi-ui/");
-//    }
+    @Override
+    public void addResourceHandlers(final ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/api-docs/**")
+                .addResourceLocations("classpath:/META-INF/resources/webjars/springdoc-openapi-ui/");
+    }
 
     @Override
     public void addCorsMappings(final CorsRegistry registry) {

@@ -2,6 +2,7 @@ package org.example.usermanagement.security;
 
 import io.jsonwebtoken.*;
 import org.example.usermanagement.model.User;
+import org.example.usermanagement.repository.TokenBlacklistRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -24,6 +25,12 @@ public class JwtTokenProvider {
 
     @Value("${jwt.refreshExpirationDateInMs}")
     private long refreshExpirationDateInMs;
+
+    private final TokenBlacklistRepository tokenBlacklistRepository;
+
+    public JwtTokenProvider(TokenBlacklistRepository tokenBlacklistRepository) {
+        this.tokenBlacklistRepository = tokenBlacklistRepository;
+    }
 
     // Генерация токена доступа
     public String generateToken(Authentication authentication) {
@@ -90,11 +97,40 @@ public class JwtTokenProvider {
     // Валидация токена
     public boolean validateToken(String token) {
         try {
+            // Сначала проверяем, не в черном ли списке токен
+            if (tokenBlacklistRepository.isTokenBlacklisted(token)) {
+                return false;
+            }
+
             Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token);
             return true;
         } catch (MalformedJwtException | ExpiredJwtException | UnsupportedJwtException | IllegalArgumentException e) {
             return false;
         }
+    }
+
+    public boolean validateRefreshToken(String token) {
+        try {
+            // Проверяем черный список
+            if (tokenBlacklistRepository.isRefreshTokenBlacklisted(token)) {
+                return false;
+            }
+
+            Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token);
+            return true;
+        } catch (MalformedJwtException | ExpiredJwtException | UnsupportedJwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public String getUsernameFromRefreshToken(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        return claims.getSubject();
     }
 
     // Получение ключа подписи
